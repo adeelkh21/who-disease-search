@@ -63,16 +63,16 @@ pip install -r requirements_embeddings.txt
 
 ### Running from Scratch
 
-# 1. Scrape WHO data
+#### 1. Scrape WHO data
 python WHO_Disease_Scrapper.py
 
-# 2. Generate embeddings
+#### 2. Generate embeddings
 python generate_embeddings.py
 
-# 3. Build FAISS index
+#### 3. Build FAISS index
 python build_index.py
 
-# 4. Test the system
+#### 4. Test the system
 python demo.py
 
 
