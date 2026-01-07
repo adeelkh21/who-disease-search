@@ -1,0 +1,12 @@
+{
+  "model_name": "emilyalsentzer/Bio_ClinicalBERT",
+  "embedding_dimension": 768,
+  "num_vectors": 1652,
+  "index_type": "IndexFlatL2",
+  "normalized": true,
+  "similarity_metric": "cosine (via L2 on normalized vectors)",
+  "created_at": "2025-11-30T23:09:32.768583",
+  "index_file": "D:\\DS\\7\\BIG DATA\\Project\\data\\who_index.faiss",
+  "embeddings_file": "D:\\DS\\7\\BIG DATA\\Project\\data\\who_embeddings.jsonl",
+  "metadata_entries": 1652
+}

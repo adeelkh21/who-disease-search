@@ -1,0 +1,290 @@
+PROJECT OVERVIEW
+This project involves web scraping and data extraction from the World Health 
+Organization (WHO) Fact Sheets website to create a comprehensive, structured 
+dataset of disease-related information. The dataset is formatted as a JSONL 
+(JSON Lines) file, making it suitable for use in Retrieval-Augmented Generation 
+(RAG) systems, machine learning models, and other data analysis applications.
+
+The primary objective was to collect, clean, and structure health information 
+from WHO's official fact sheets into a machine-readable format that preserves 
+semantic meaning while being optimized for embedding-based search and retrieval.
+
+
+DATASET DESCRIPTION
+
+Dataset Name: who_diseases_Full_Catalogue.jsonl
+Location: data/who_diseases_Full_Catalogue.jsonl
+Format: JSONL (JSON Lines) - Each line is a valid JSON object
+Total Records: 1,652 chunks
+Total Pages Scraped: 233 WHO fact sheet pages
+Average Chunks per Page: 7.09 chunks
+File Size: Approximately 1,653 lines
+
+Data Source: https://www.who.int/news-room/fact-sheets
+
+
+SCRAPING PROCESS AND METHODOLOGY
+
+1. INDEX PAGE DISCOVERY
+   - The scraper first accesses the main WHO fact sheets index page
+   - It identifies all links matching the pattern: 
+     "/news-room/fact-sheets/detail/"
+   - Extracts unique URLs for individual fact sheet pages
+   - Found 233 unique fact sheet pages (limited to 1000 max as per configuration)
+
+2. PAGE PROCESSING
+   For each fact sheet page:
+   a. HTML Content Retrieval
+      - Fetches the full HTML content using HTTP GET requests
+      - Implements polite scraping with 1-second delay between requests
+      - Uses appropriate User-Agent headers
+      - Handles errors gracefully with timeout protection (20 seconds)
+
+   b. Content Extraction
+      - Parses HTML using BeautifulSoup with lxml parser
+      - Removes non-content elements (headers, footers, navigation, scripts, styles)
+      - Identifies main content area using semantic HTML tags (main, article)
+      - Extracts page title from H1 or H2 tags
+      - Extracts breadcrumb navigation for categorization
+
+   c. Section-Based Organization
+      - Identifies sections based on HTML heading tags (H1-H6)
+      - Groups content under appropriate section headings
+      - Handles nested headings and complex page structures
+      - Merges very short sections (<30 words) with adjacent sections
+      - Falls back to paragraph-based extraction if no headings found
+
+3. TEXT CLEANING AND PREPROCESSING
+   The extracted text undergoes comprehensive cleaning:
+   
+   a. Citation Removal
+      - Removes PMID (PubMed ID) citations: "PMID: 34106927"
+      - Removes PMCID (PubMed Central ID) citations
+      - Removes parenthetical citations: "(6,7,8)", "(4, 5)"
+      - Removes standalone reference numbers at end of lines
+      - Removes bracket citations: [1], [2]
+      - Removes WHO citations: "(WHO, 2024)"
+      - Removes academic citations: "Smith et al., 2024"
+   
+   b. Whitespace Normalization
+      - Converts all line endings (\r\n) to standard format
+      - Replaces newlines with spaces (for better embedding compatibility)
+      - Normalizes multiple spaces/tabs to single spaces
+      - Removes spaces before punctuation
+      - Trims leading/trailing whitespace
+
+4. INTELLIGENT CHUNKING STRATEGY
+   The text is divided into optimal-sized chunks for embedding:
+   
+   a. Sentence-Aware Chunking
+      - Uses NLTK sentence tokenizer to preserve sentence boundaries
+      - Falls back to period-based splitting if NLTK unavailable
+      - Ensures chunks don't break sentences mid-way
+   
+   b. Token-Based Size Control
+      - Uses tiktoken library for accurate token counting
+      - Target chunk size: 450 tokens (MAX_CHUNK_TOKENS)
+      - Minimum acceptable size: 200 tokens (MIN_CHUNK_TOKENS)
+      - Absolute minimum: 50 tokens (MIN_CHUNK_TOKENS_STRICT)
+      - Chunks are built by adding sentences until approaching token limit
+   
+   c. Quality Filtering
+      - Detects and filters citation-heavy chunks (>30% citations)
+      - These chunks are removed as they dilute embedding quality
+      - Citation detection uses pattern matching and density analysis
+   
+   d. Smart Merging
+      - Very small chunks (<50 tokens) are merged with adjacent chunks
+      - Medium chunks (50-200 tokens) are merged when possible
+      - Merging respects maximum token limit to prevent oversized chunks
+      - Final chunks are re-cleaned after merging
+
+
+TECHNICAL IMPLEMENTATION DETAILS
+Programming Language: Python 3
+Key Libraries Used:
+- requests: HTTP requests for web scraping
+- BeautifulSoup4: HTML parsing and content extraction
+- lxml: Fast XML/HTML parser backend
+- tiktoken: Token counting for chunk size management
+- nltk: Natural language processing (sentence tokenization)
+- tqdm: Progress bar for monitoring scraping progress
+- json: JSON serialization
+- re: Regular expressions for text cleaning
+- urllib.parse: URL manipulation
+- pathlib: File path handling
+- datetime: Timestamp tracking
+
+Configuration Parameters:
+- MAX_PAGES: 1000 (maximum pages to scrape)
+- REQUEST_DELAY: 1.0 seconds (politeness delay)
+- MAX_CHUNK_TOKENS: 450 tokens
+- MIN_CHUNK_TOKENS: 200 tokens
+- MIN_CHUNK_TOKENS_STRICT: 50 tokens
+- CITATION_HEAVY_THRESHOLD: 0.3 (30% citation density)
+- REQUEST_TIMEOUT: 20 seconds
+
+
+DATA STRUCTURE AND SCHEMA
+
+Each record in the JSONL file follows this structure:
+
+{
+    "id": "disease_name_section_name_chunk_N",
+    "title": "Disease or Topic Name",
+    "section": "Section Heading",
+    "chunk_id": N,
+    "text": "Cleaned text content of the chunk",
+    "source_url": "https://www.who.int/news-room/fact-sheets/detail/...",
+    "source": "WHO",
+    "category": "Breadcrumb navigation path"
+}
+
+Field Descriptions:
+- id: Unique identifier combining disease, section, and chunk number
+- title: The main topic/disease name from the fact sheet
+- section: The section heading under which this chunk belongs
+- chunk_id: Sequential number of chunk within the section
+- text: The actual cleaned text content (ready for embedding)
+- source_url: Original URL of the WHO fact sheet page
+- source: Always "WHO" indicating the data source
+- category: Breadcrumb path showing page location in WHO website hierarchy
+
+
+SCRAPING RESULTS AND STATISTICS
+
+Execution Date: November 23, 2025
+Start Time: 01:46:26
+End Time: 01:53:15
+Total Processing Time: 408.54 seconds (6.81 minutes)
+
+Success Metrics:
+- Total Pages Processed: 233
+- Total Pages Failed: 0 (100% success rate)
+- Total Chunks Created: 1,652
+- Average Chunks per Page: 7.09 chunks
+
+Chunk Quality Metrics:
+- Average Chunk Size: 180.85 tokens
+- Smallest Chunk: 18 tokens
+- Largest Chunk: 456 tokens
+- Total Chunks: 1,652
+
+Quality Improvements Applied:
+- Citation-heavy chunks filtered: Automatically removed chunks with >30% 
+  references to improve embedding quality
+- Small chunks merged: Chunks below 50 tokens were merged with adjacent 
+  chunks to ensure minimum quality (target: 200 tokens)
+
+Data Quality Features:
+- All text cleaned and normalized
+- Sentence boundaries preserved
+- Consistent token-based sizing
+- Citation noise removed
+- Structured metadata included
+- Source attribution maintained
+
+
+EXAMPLE CHUNKS FROM THE DATASET
+
+EXAMPLE 1: Abortion - Overview Section
+--------------------------------------------------------------------------------
+{
+    "id": "abortion_overview_chunk_1",
+    "title": "Abortion",
+    "section": "Overview",
+    "chunk_id": 1,
+    "text": "Around 73 million induced abortions take place worldwide each year. Six out of 10 (61%) of all unintended pregnancies, and 3 out of 10 (29%) of all pregnancies, end in induced abortion. Comprehensive abortion care is included in the list of essential health care services published by WHO in 2020. Abortion is a simple health care intervention that can be safely and effectively managed by a wide range of health workers using medication or a surgical procedure. In the first 12 weeks of pregnancy, a medical abortion can also be safely self-managed by the pregnant person outside of a health care facility (e.g. at home), in whole or in part. This requires that the woman has access to accurate information, quality medicines and support from a trained health worker (if she needs or wants it during the process). Comprehensive abortion care includes the provision of information, abortion management and post-abortion care. It encompasses care related to miscarriage (spontaneous abortion and missed abortion), induced abortion (the deliberate interruption of an ongoing pregnancy by medical or surgical means), incomplete abortion as well as intrauterine fetal demise. The information in this fact sheet focuses on care related to induced abortion.",
+    "source_url": "https://www.who.int/news-room/fact-sheets/detail/abortion",
+    "source": "WHO",
+    "category": "Home > / > Newsroom > / > Fact sheets > / > Detail > / > Abortion"
+}
+
+--------------------------------------------------------------------------------
+EXAMPLE 2: Mental Health of Adolescents - Emotional Disorders Section
+--------------------------------------------------------------------------------
+{
+    "id": "mental_health_of_adolescents_emotional_disorders_chunk_1",
+    "title": "Mental health of adolescents",
+    "section": "Emotional disorders",
+    "chunk_id": 1,
+    "text": "Emotional disorders are common among adolescents. Anxiety disorders (which may involve panic or excessive worry) are the most prevalent in this age group and are more common among older than among younger adolescents. It is estimated that 4.1% of 10–14-year-olds and 5.3% of 15–19-year-olds experience an anxiety disorder. Depression is estimated to occur among 1.3% of adolescents aged 10–14 years, and 3.4% of 15–19-year-olds. Depression and anxiety share some of the same symptoms, including rapid and unexpected changes in mood. Anxiety and depressive disorders can profoundly affect school attendance and schoolwork. Social withdrawal can exacerbate isolation and loneliness. Depression can lead to suicide.",
+    "source_url": "https://www.who.int/news-room/fact-sheets/detail/adolescent-mental-health",
+    "source": "WHO",
+    "category": "Home > / > Newsroom > / > Fact sheets > / > Detail > / > Mental health of adolescents"
+}
+
+--------------------------------------------------------------------------------
+EXAMPLE 3: Mpox - Transmission Section
+--------------------------------------------------------------------------------
+{
+    "id": "mpox_transmission_chunk_1",
+    "title": "Mpox",
+    "section": "Transmission",
+    "chunk_id": 1,
+    "text": "Mpox spreads from person to person mainly through close contact with someone who has mpox, including members of a household. Close contact includes skin-to-skin (such as touching or sex) and mouth-to-mouth or mouth-to-skin contact (such as kissing), and it can also include being face-to-face with someone who has mpox (such as talking or breathing close to one another, which can generate infectious respiratory particles). People with multiple sexual partners are at higher risk of acquiring mpox. People can also contract mpox from contaminated objects such as clothing or linen, through needle injuries in health care, or in community settings such as tattoo parlours. During pregnancy or birth, the virus may be passed to the baby. Contracting mpox during pregnancy can be dangerous for the fetus or newborn infant and can lead to loss of the pregnancy, stillbirth, death of the newborn, or complications for the parent. Animal-to-human transmission of mpox occurs from infected animals to humans from bites or scratches, or during activities such as hunting, skinning, trapping, cooking, playing with carcasses or eating animals. The animal reservoir of the monkeypox virus remains unknown and further studies are underway. More research is needed on how mpox spreads during outbreaks in different settings and under different conditions.",
+    "source_url": "https://www.who.int/news-room/fact-sheets/detail/mpox",
+    "source": "WHO",
+    "category": "Home > / > Newsroom > / > Fact sheets > / > Detail > / > Mpox"
+}
+
+FILE STRUCTURE AND OUTPUT
+
+
+Project Directory Structure:
+Project/
+├── data/
+│   ├── who_diseases_Full_Catalogue.jsonl    (Main dataset - 1,652 records)
+│   └── scraping_report.txt                  (Execution summary report)
+├── WHO_Disease_Scrapper.py                  (Main scraping script)
+├── venv/                                     (Python virtual environment)
+└── Proposal.docx                             (Project proposal document)
+
+Output Files:
+1. who_diseases_Full_Catalogue.jsonl
+   - Primary output file
+   - Contains all scraped and processed data
+   - Format: One JSON object per line
+   - Encoding: UTF-8
+   - Ready for RAG ingestion, ML training, or data analysis
+
+2. scraping_report.txt
+   - Summary report of scraping execution
+   - Contains statistics and metrics
+   - Lists any failed URLs
+   - Processing time and performance metrics
+
+
+TECHNICAL ACHIEVEMENTS AND INNOVATIONS
+
+1. Intelligent Text Cleaning
+   - Comprehensive citation removal while preserving content meaning
+   - Handles multiple citation formats (PMID, academic, parenthetical)
+   - Maintains readability after cleaning
+
+2. Sentence-Aware Chunking
+   - Preserves sentence boundaries for better semantic coherence
+   - Token-accurate sizing using tiktoken
+   - Prevents mid-sentence breaks that could affect embeddings
+
+3. Quality Filtering
+   - Automatic detection and removal of citation-heavy chunks
+   - Prevents noise in embedding vectors
+   - Improves retrieval accuracy
+
+4. Robust Error Handling
+   - 100% success rate (0 failed pages)
+   - Graceful degradation for missing dependencies
+   - Comprehensive error logging
+
+5. Polite Web Scraping
+   - Respects website resources with delays
+   - Appropriate User-Agent headers
+   - Timeout protection
+
+6. Structured Metadata
+   - Rich metadata for each chunk (title, section, category, source)
+   - Enables filtering and organization
+   - Source attribution for credibility
+
+
