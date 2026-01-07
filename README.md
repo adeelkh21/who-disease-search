@@ -57,7 +57,7 @@ WHO Website → Scraping → Text Extraction → Cleaning → Chunking → Embed
 
 ## ⚡ Quick Start
 
-# Install dependencies
+#### Install dependencies
 pip install -r requirements_embeddings.txt
 
 
